@@ -36,37 +36,65 @@
             border-color: #4ade80 !important; /* green-400 */
             background-color: rgba(74, 222, 128, 0.1) !important;
         }
+        
+        /* Custom scrollbar for webkit */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b; 
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569; 
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b; 
+        }
     </style>
 </head>
-<body class="bg-slate-900 text-slate-100 min-h-screen font-sans">
+<body class="bg-slate-900 text-slate-100 min-h-screen font-sans selection:bg-blue-500 selection:text-white">
 
-    <div class="max-w-6xl mx-auto p-4 md:p-8">
-        <header class="flex items-center justify-between mb-8 pb-4 border-b border-slate-700">
+    <div class="max-w-7xl mx-auto p-4 md:p-6 lg:p-8">
+        <header class="flex items-center justify-between mb-6 lg:mb-8 pb-4 border-b border-slate-700">
             <div class="flex items-center gap-3">
-                <i data-lucide="shirt" class="w-8 h-8 text-blue-400"></i>
-                <h1 class="text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">PixelWardrobe</h1>
+                <div class="p-2 bg-slate-800 rounded-lg border border-slate-700">
+                    <i data-lucide="shirt" class="w-6 h-6 md:w-8 md:h-8 text-blue-400"></i>
+                </div>
+                <div>
+                    <h1 class="text-xl md:text-2xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">PixelWardrobe</h1>
+                    <p class="text-xs text-slate-400 hidden sm:block">Craft your look, block by block</p>
+                </div>
             </div>
+            <!-- Mobile Export Button (Optional, for quick access) -->
+            <button onclick="window.downloadSkin()" class="md:hidden p-2 bg-green-600 rounded-lg text-white hover:bg-green-500 transition-colors">
+                <i data-lucide="download" class="w-5 h-5"></i>
+            </button>
         </header>
 
-        <main class="grid lg:grid-cols-12 gap-8">
+        <!-- Main Layout: Reverses on mobile so preview is conceptually 'first' visually if we wanted, 
+             but here standard order works best. Added items-start for Sticky behavior. -->
+        <main class="grid lg:grid-cols-12 gap-6 lg:gap-8 items-start">
             
             <!-- LEFT COLUMN: Editor Controls -->
-            <div class="lg:col-span-4 space-y-6">
+            <div class="lg:col-span-4 space-y-6 order-2 lg:order-1">
                 
                 <!-- 1. Import Section -->
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i data-lucide="upload" class="w-5 h-5"></i> 1. Import Skin
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-200">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-blue-400">1</span>
+                        Import Skin
                     </h2>
                     
                     <div class="space-y-4">
                         <div>
                             <div class="flex gap-2">
                                 <input type="text" id="usernameInput" placeholder="Username (e.g. Notch)" 
-                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm">
+                                    class="w-full bg-slate-900 border border-slate-600 rounded px-3 py-2 focus:ring-2 focus:ring-blue-500 outline-none text-sm transition-all">
                                 <button onclick="window.loadFromUsername()" 
-                                    class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-medium transition-colors">
-                                    Fetch
+                                    class="bg-blue-600 hover:bg-blue-500 px-4 py-2 rounded text-sm font-medium transition-colors flex items-center gap-2">
+                                    <span>Fetch</span>
+                                    <i data-lucide="search" class="w-3 h-3"></i>
                                 </button>
                             </div>
                             <p id="fetchStatus" class="text-xs mt-1 text-slate-500 h-4"></p>
@@ -74,53 +102,55 @@
 
                         <div class="relative flex py-1 items-center">
                             <div class="flex-grow border-t border-slate-600"></div>
-                            <span class="flex-shrink-0 mx-2 text-slate-500 text-xs">OR UPLOAD</span>
+                            <span class="flex-shrink-0 mx-2 text-slate-500 text-[10px] uppercase tracking-wider">OR</span>
                             <div class="flex-grow border-t border-slate-600"></div>
                         </div>
 
-                        <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors">
-                            <i data-lucide="file-image" class="w-8 h-8 text-slate-400 mb-2"></i>
-                            <span class="text-sm text-slate-400">Click to upload skin file</span>
+                        <label class="flex flex-col items-center justify-center w-full h-24 border-2 border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 hover:border-blue-400 transition-all group">
+                            <i data-lucide="file-image" class="w-8 h-8 text-slate-400 group-hover:text-blue-400 transition-colors mb-2"></i>
+                            <span class="text-sm text-slate-400 group-hover:text-blue-200">Upload skin file</span>
                             <input type="file" id="fileInput" class="hidden" accept=".png" onchange="window.handleFileUpload(this)" />
                         </label>
                     </div>
                 </div>
 
                 <!-- 2. Footwear Selection -->
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i data-lucide="footprints" class="w-5 h-5"></i> 2. Select Footwear
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-200">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-blue-400">2</span>
+                        Select Footwear
                     </h2>
                     
-                    <div class="grid grid-cols-1 gap-3">
+                    <!-- Smart Grid: 1 col on mobile, 2 on tablet, 1 on desktop -->
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                         <!-- FESTIVE BOOTS PRESET -->
-                        <button id="btn-boots-festive" onclick="window.toggleLayer('boots', 'festive')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-green-400 transition-all text-left px-2 overflow-hidden">
-                            <div class="flex items-center gap-4 h-full">
-                                <div class="w-24 h-28 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600">
+                        <button id="btn-boots-festive" onclick="window.toggleLayer('boots', 'festive')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-green-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-green-400/50 transition-colors">
                                     <canvas id="preview-boots-festive" class="w-full h-full object-cover"></canvas>
                                 </div>
-                                <div class="flex flex-col justify-center">
-                                    <span class="block font-bold text-green-100 text-base mb-1">Holiday Spirit Striders</span>
-                                    <span class="block text-xs text-green-300 opacity-75">Snowman (L) & Reindeer (R)</span>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-green-100 text-sm md:text-base mb-1 truncate">Holiday Striders</span>
+                                    <span class="block text-xs text-green-300 opacity-75 line-clamp-2">Snowman (L) & Reindeer (R)</span>
                                 </div>
                             </div>
                         </button>
 
                         <!-- DUCKY SLIPPERS PRESET -->
-                        <button id="btn-boots-ducky" onclick="window.toggleLayer('boots', 'ducky')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-yellow-400 transition-all text-left px-2 overflow-hidden">
-                            <div class="flex items-center gap-4 h-full">
-                                <div class="w-24 h-28 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600">
+                        <button id="btn-boots-ducky" onclick="window.toggleLayer('boots', 'ducky')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-yellow-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-yellow-400/50 transition-colors">
                                     <canvas id="preview-boots-ducky" class="w-full h-full object-cover"></canvas>
                                 </div>
-                                <div class="flex flex-col justify-center">
-                                    <span class="block font-bold text-yellow-100 text-base mb-1">Ducky Slippers</span>
-                                    <span class="block text-xs text-yellow-300 opacity-75">Tiny yellow ducks. Quack!</span>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-yellow-100 text-sm md:text-base mb-1 truncate">Ducky Slippers</span>
+                                    <span class="block text-xs text-yellow-300 opacity-75 line-clamp-2">Tiny yellow ducks. Quack!</span>
                                 </div>
                             </div>
                         </button>
 
                         <!-- CUSTOM BOOTS -->
-                        <label id="btn-boots-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2">
+                        <label id="btn-boots-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2 sm:col-span-2 lg:col-span-1">
                             <i data-lucide="upload-cloud" class="w-4 h-4 text-slate-400"></i>
                             <span class="text-xs text-slate-400">Upload Custom Boots</span>
                             <input type="file" class="hidden" accept=".png" onchange="window.handleCustomUpload('boots', this)" />
@@ -129,40 +159,41 @@
                 </div>
 
                 <!-- 3. Tops Selection -->
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i data-lucide="shirt" class="w-5 h-5"></i> 3. Select Tops
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-200">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-blue-400">3</span>
+                        Select Tops
                     </h2>
                     
-                    <div class="grid grid-cols-1 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                         <!-- CHRISTMAS JUMPER (RED) -->
-                        <button id="btn-top-xmas1" onclick="window.toggleLayer('top', 'xmas1')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-red-400 transition-all text-left px-2 overflow-hidden">
-                            <div class="flex items-center gap-4 h-full">
-                                <div class="w-24 h-28 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600">
+                        <button id="btn-top-xmas1" onclick="window.toggleLayer('top', 'xmas1')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-red-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-red-400/50 transition-colors">
                                     <canvas id="preview-top-xmas1" class="w-full h-full object-cover"></canvas>
                                 </div>
-                                <div class="flex flex-col justify-center">
-                                    <span class="block font-bold text-red-100 text-base mb-1">Festive Jumper</span>
-                                    <span class="block text-xs text-red-300 opacity-75">Classic red holiday sweater</span>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-red-100 text-sm md:text-base mb-1 truncate">Festive Jumper</span>
+                                    <span class="block text-xs text-red-300 opacity-75 line-clamp-2">Classic red holiday sweater</span>
                                 </div>
                             </div>
                         </button>
 
                         <!-- CHRISTMAS JUMPER (NOIR) -->
-                        <button id="btn-top-xmas2" onclick="window.toggleLayer('top', 'xmas2')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-slate-400 transition-all text-left px-2 overflow-hidden">
-                            <div class="flex items-center gap-4 h-full">
-                                <div class="w-24 h-28 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600">
+                        <button id="btn-top-xmas2" onclick="window.toggleLayer('top', 'xmas2')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-slate-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-slate-400/50 transition-colors">
                                     <canvas id="preview-top-xmas2" class="w-full h-full object-cover"></canvas>
                                 </div>
-                                <div class="flex flex-col justify-center">
-                                    <span class="block font-bold text-slate-100 text-base mb-1">Noir Festive Jumper</span>
-                                    <span class="block text-xs text-slate-300 opacity-75">Monochrome holiday style</span>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-slate-100 text-sm md:text-base mb-1 truncate">Noir Jumper</span>
+                                    <span class="block text-xs text-slate-300 opacity-75 line-clamp-2">Monochrome holiday style</span>
                                 </div>
                             </div>
                         </button>
 
                         <!-- CUSTOM TOP -->
-                        <label id="btn-top-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2">
+                        <label id="btn-top-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2 sm:col-span-2 lg:col-span-1">
                             <i data-lucide="upload-cloud" class="w-4 h-4 text-slate-400"></i>
                             <span class="text-xs text-slate-400">Upload Custom Top</span>
                             <input type="file" class="hidden" accept=".png" onchange="window.handleCustomUpload('top', this)" />
@@ -171,28 +202,28 @@
                 </div>
 
                 <!-- 4. Onesie Selection -->
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i data-lucide="user" class="w-5 h-5"></i> 4. Select Suit
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-200">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-blue-400">4</span>
+                        Select Suit
                     </h2>
                     
-                    <div class="grid grid-cols-1 gap-3">
+                    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
                         <!-- TREE ONESIE PRESET -->
-                        <button id="btn-onesie-tree" onclick="window.toggleLayer('onesie', 'tree')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-emerald-400 transition-all text-left px-2 overflow-hidden">
-                            <div class="flex items-center gap-4 h-full">
-                                <!-- Larger 3D Preview Container -->
-                                <div class="w-24 h-28 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600">
+                        <button id="btn-onesie-tree" onclick="window.toggleLayer('onesie', 'tree')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-emerald-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-emerald-400/50 transition-colors">
                                     <canvas id="preview-onesie-tree" class="w-full h-full object-cover"></canvas>
                                 </div>
-                                <div class="flex flex-col justify-center">
-                                    <span class="block font-bold text-emerald-100 text-base mb-1">Tree Onesie</span>
-                                    <span class="block text-xs text-emerald-300 opacity-75">With Christmas Lights</span>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-emerald-100 text-sm md:text-base mb-1 truncate">Tree Onesie</span>
+                                    <span class="block text-xs text-emerald-300 opacity-75 line-clamp-2">With Christmas Lights</span>
                                 </div>
                             </div>
                         </button>
 
                         <!-- CUSTOM ONESIE -->
-                        <label id="btn-onesie-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2">
+                        <label id="btn-onesie-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2 sm:col-span-2 lg:col-span-1">
                             <i data-lucide="upload-cloud" class="w-4 h-4 text-slate-400"></i>
                             <span class="text-xs text-slate-400">Upload Custom Onesie</span>
                             <input type="file" class="hidden" accept=".png" onchange="window.handleCustomUpload('onesie', this)" />
@@ -201,45 +232,68 @@
                 </div>
 
                 <!-- 5. Export -->
-                <div class="bg-slate-800 p-5 rounded-xl shadow-lg border border-slate-700">
-                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2">
-                        <i data-lucide="download" class="w-5 h-5"></i> 5. Export
+                <div class="bg-slate-800 p-4 md:p-5 rounded-xl shadow-lg border border-slate-700 sticky bottom-4 z-10 lg:static">
+                    <h2 class="text-lg font-semibold mb-4 flex items-center gap-2 text-blue-200">
+                        <span class="flex items-center justify-center w-6 h-6 rounded-full bg-slate-700 text-xs font-bold text-blue-400">5</span>
+                        Export
                     </h2>
-                    <button onclick="window.downloadSkin()" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-transform active:scale-95 shadow-lg shadow-green-900/20">
-                        <i data-lucide="download" class="w-4 h-4"></i> Download Skin
+                    <button onclick="window.downloadSkin()" class="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-bold py-3 rounded-lg flex items-center justify-center gap-2 transition-all active:scale-95 shadow-lg shadow-green-900/30">
+                        <i data-lucide="download" class="w-5 h-5"></i> Download Skin
                     </button>
                 </div>
 
             </div>
 
             <!-- CENTER/RIGHT: Preview Area -->
-            <div class="lg:col-span-8 flex flex-col gap-6">
+            <!-- Sticky position on desktop (lg) so it stays visible while scrolling controls -->
+            <div class="lg:col-span-8 flex flex-col gap-6 order-1 lg:order-2 lg:sticky lg:top-6">
                 
                 <!-- 3D Preview -->
-                <div class="bg-slate-800 rounded-xl shadow-lg overflow-hidden border border-slate-700 flex flex-col h-[600px]">
-                    <div class="p-4 bg-slate-900/50 border-b border-slate-700 flex justify-between items-center">
-                        <h3 class="font-bold text-slate-300">3D Preview (skin3d)</h3>
+                <div class="bg-slate-800 rounded-xl shadow-2xl overflow-hidden border border-slate-700 flex flex-col h-[400px] md:h-[500px] lg:h-[600px] transition-all duration-300">
+                    <div class="p-3 md:p-4 bg-slate-900/50 border-b border-slate-700 flex justify-between items-center backdrop-blur-sm">
+                        <h3 class="font-bold text-slate-300 flex items-center gap-2 text-sm md:text-base">
+                            <i data-lucide="box" class="w-4 h-4 text-purple-400"></i>
+                            Live Preview
+                        </h3>
                         <div class="flex gap-2 items-center">
-                             <button id="walkToggle" onclick="window.toggleWalk()" class="px-3 py-1 bg-slate-700 hover:bg-slate-600 rounded text-xs text-white flex items-center gap-2 transition-colors">
-                                <i data-lucide="footprints" class="w-3 h-3"></i> Toggle Walk
+                             <button id="walkToggle" onclick="window.toggleWalk()" class="px-3 py-1.5 bg-slate-700 hover:bg-slate-600 rounded-md text-xs text-white flex items-center gap-2 transition-colors border border-slate-600">
+                                <i data-lucide="footprints" class="w-3 h-3"></i> 
+                                <span class="hidden sm:inline">Toggle Walk</span>
+                                <span class="sm:hidden">Walk</span>
                             </button>
-                            <span class="text-xs text-slate-500">Drag to Rotate</span>
+                            <div class="h-4 w-px bg-slate-600"></div>
+                            <span class="text-[10px] uppercase tracking-wide text-slate-500 font-semibold">Drag to Rotate</span>
                         </div>
                     </div>
                     
-                    <div class="viewport" id="previewContainer">
+                    <div class="viewport relative group" id="previewContainer">
                         <canvas id="skin_view_container" class="w-full h-full cursor-move"></canvas>
+                        <!-- Overlay hint -->
+                        <div class="absolute bottom-4 left-1/2 -translate-x-1/2 bg-black/50 px-3 py-1 rounded-full text-xs text-white/70 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
+                            Interactive 3D View
+                        </div>
                     </div>
                 </div>
 
-                <!-- 2D Canvas Preview (Hidden logic, used for processing) -->
-                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700">
-                    <h3 class="font-bold text-slate-300 mb-4 text-sm">2D Output Verification</h3>
-                    <canvas id="mainCanvas" width="64" height="64" class="checkered border border-slate-600 w-32 h-32" style="image-rendering: pixelated;"></canvas>
+                <!-- 2D Canvas Preview (Hidden logic, but displayed for trust) -->
+                <div class="bg-slate-800 p-4 rounded-xl border border-slate-700 hidden lg:block">
+                    <div class="flex items-center gap-4">
+                         <div class="bg-slate-900 p-1 rounded border border-slate-600 inline-block">
+                            <canvas id="mainCanvas" width="64" height="64" class="checkered w-16 h-16" style="image-rendering: pixelated;"></canvas>
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-slate-300 text-sm">Output Verification</h3>
+                            <p class="text-xs text-slate-500 max-w-sm mt-1">This is the actual flat texture file that will be generated for your character.</p>
+                        </div>
+                    </div>
                 </div>
 
             </div>
         </main>
+        
+        <footer class="mt-12 pt-8 border-t border-slate-800 text-center text-slate-600 text-xs">
+            <p>PixelWardrobe &copy; 2025. Not affiliated with Mojang or Microsoft.</p>
+        </footer>
     </div>
 
     <!-- MAIN SCRIPT -->
@@ -291,19 +345,22 @@
                 // Boost lighting for main viewer
                 viewer.globalLight.intensity = 3.0;
                 
-                window.addEventListener('resize', () => {
-                    viewer.width = canvas3d.parentElement.clientWidth;
-                    viewer.height = canvas3d.parentElement.clientHeight;
+                // Resize Observer for smoother 3D canvas resizing
+                const resizeObserver = new ResizeObserver(() => {
+                    if (viewer) {
+                        viewer.width = canvas3d.parentElement.clientWidth;
+                        viewer.height = canvas3d.parentElement.clientHeight;
+                    }
                 });
-                viewer.width = canvas3d.parentElement.clientWidth;
-                viewer.height = canvas3d.parentElement.clientHeight;
+                resizeObserver.observe(canvas3d.parentElement);
 
                 // Init Small Previews
                 await initPreviews(skin3d);
 
             } catch (e) {
                 console.error("Failed to init skin3d:", e);
-                document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center">Error loading 3D Library.<br>${e.message}</div>`;
+                document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-8 h-8 mb-2"></i>Error loading 3D Library.<br><span class="text-xs text-white/50">${e.message}</span></div>`;
+                if (typeof lucide !== 'undefined') lucide.createIcons();
             }
         }
 
