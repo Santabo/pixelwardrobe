@@ -222,6 +222,19 @@
                             </div>
                         </button>
 
+                        <!-- MIDNIGHT ROBES PRESET -->
+                        <button id="btn-onesie-midnight" onclick="window.toggleLayer('onesie', 'midnight')" class="group relative h-32 bg-slate-700 rounded-lg border-2 border-transparent hover:border-indigo-400 transition-all text-left px-2 overflow-hidden shadow-sm hover:shadow-md">
+                            <div class="flex items-center gap-3 h-full">
+                                <div class="w-20 h-24 flex-shrink-0 bg-slate-800/50 rounded-md overflow-hidden relative border border-slate-600 group-hover:border-indigo-400/50 transition-colors">
+                                    <canvas id="preview-onesie-midnight" class="w-full h-full object-cover"></canvas>
+                                </div>
+                                <div class="flex flex-col justify-center min-w-0">
+                                    <span class="block font-bold text-indigo-100 text-sm md:text-base mb-1 truncate">Midnight Mage</span>
+                                    <span class="block text-xs text-indigo-300 opacity-75 line-clamp-2">Dark blue robes with gold trim</span>
+                                </div>
+                            </div>
+                        </button>
+
                         <!-- CUSTOM ONESIE -->
                         <label id="btn-onesie-custom" class="relative h-12 border border-slate-600 border-dashed rounded-lg cursor-pointer hover:bg-slate-750 transition-colors flex items-center justify-center gap-2 sm:col-span-2 lg:col-span-1">
                             <i data-lucide="upload-cloud" class="w-4 h-4 text-slate-400"></i>
@@ -326,6 +339,7 @@
         const URL_TOP_XMAS1 = "https://i.ibb.co/r2tX2Z3w/pixil-frame-0-9.png";
         const URL_TOP_XMAS2 = "https://i.ibb.co/XrB0GBF4/pixil-frame-0-10.png";
         const URL_ONESIE_TREE = "https://i.ibb.co/Fb30S4zb/00e93117971d1691b9d1dbb65376dd77255a5069.png";
+        const URL_ONESIE_MIDNIGHT = "https://i.ibb.co/xKJdXSJZ/713bae2e824a6822e28021a96e18af9b500dfb87.png";
         const URL_DEFAULT_STEVE = "https://minotar.net/skin/MHF_Steve";
 
         // --- 3D INIT ---
@@ -427,6 +441,7 @@
             await createMiniViewer('preview-top-xmas1', URL_TOP_XMAS1, 'top');
             await createMiniViewer('preview-top-xmas2', URL_TOP_XMAS2, 'top');
             await createMiniViewer('preview-onesie-tree', URL_ONESIE_TREE, 'onesie');
+            await createMiniViewer('preview-onesie-midnight', URL_ONESIE_MIDNIGHT, 'onesie');
         }
 
         init3D();
@@ -475,7 +490,8 @@
                         (category === 'boots' && id === 'ducky') ? URL_BOOTS_DUCKY :
                         (category === 'top' && id === 'xmas1') ? URL_TOP_XMAS1 :
                         (category === 'top' && id === 'xmas2') ? URL_TOP_XMAS2 :
-                        (category === 'onesie' && id === 'tree') ? URL_ONESIE_TREE : null;
+                        (category === 'onesie' && id === 'tree') ? URL_ONESIE_TREE : 
+                        (category === 'onesie' && id === 'midnight') ? URL_ONESIE_MIDNIGHT : null;
 
             if (!url) return;
 
