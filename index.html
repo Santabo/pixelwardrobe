@@ -312,33 +312,26 @@
     // Initialize Icons
     if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    // Use ES Module import from reliable CDN
+    // ES Module for skin3d
     import * as skin3d from 'https://esm.sh/skin3d@0.0.11';
 
-    // State Variables
+    // DOM References
     const canvas3d = document.getElementById('skin_view_container');
     const processingCanvas = document.getElementById('mainCanvas');
     const pCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
 
     let currentSkinUrl = 'https://minotar.net/skin/MHF_Steve';
+    let viewer = null;
 
-    // Active Layers State
+    // Overlay data
+    let overlaysData = null;
+
+    // Active layers
     let activeLayers = {
         boots: null,
         top: null,
         onesie: null
     };
-
-    let viewer = null;
-
-    // Constants (i.ibb URLs)
-    const URL_BOOTS_FESTIVE = "https://i.ibb.co/JW4zn3n7/67ef35776c4b2ca55415a62bfce303a55c926f94.png";
-    const URL_BOOTS_DUCKY = "https://i.ibb.co/KcjK5NHB/830574a5b1d4a92126ed7b3e00ff3239e1444bb1.png";
-    const URL_TOP_XMAS1 = "https://i.ibb.co/r2tX2Z3w/pixil-frame-0-9.png";
-    const URL_TOP_XMAS2 = "https://i.ibb.co/XrB0GBF4/pixil-frame-0-10.png";
-    const URL_ONESIE_TREE = "https://i.ibb.co/Fb30S4zb/00e93117971d1691b9d1dbb65376dd77255a5069.png";
-    const URL_ONESIE_MIDNIGHT = "https://i.ibb.co/zhQ9834p/f5d43387223e8803859b36edb76d20af4271fa45.png";
-    const URL_DEFAULT_STEVE = "https://minotar.net/skin/MHF_Steve";
 
     // --- 3D INIT ---
     async function init3D() {
@@ -355,6 +348,7 @@
             viewer.autoRotateSpeed = 0.5;
             viewer.globalLight.intensity = 3.0;
 
+            // Resize Observer
             const resizeObserver = new ResizeObserver(() => {
                 if (viewer) {
                     viewer.width = canvas3d.parentElement.clientWidth;
@@ -363,8 +357,8 @@
             });
             resizeObserver.observe(canvas3d.parentElement);
 
-            await initPreviews(skin3d);
-
+            // Load overlays dynamically
+            await fetchOverlays();
         } catch (e) {
             console.error("Failed to init skin3d:", e);
             document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-8 h-8 mb-2"></i>Error loading 3D Library.<br><span class="text-xs text-white/50">${e.message}</span></div>`;
@@ -372,66 +366,76 @@
         }
     }
 
-    async function initPreviews(lib) {
-        const createMiniViewer = async (canvasId, overlayUrl, type) => {
-            const cvs = document.getElementById(canvasId);
-            if (!cvs) return;
+    // --- Fetch overlays from JSON ---
+    async function fetchOverlays() {
+        try {
+            const res = await fetch('overlays.json');
+            overlaysData = await res.json();
 
-            const tempCanvas = document.createElement('canvas');
-            tempCanvas.width = 64; tempCanvas.height = 64;
-            const ctx = tempCanvas.getContext('2d');
-
-            const baseImg = await loadImage(URL_DEFAULT_STEVE);
-            const overlayImg = await loadImage(overlayUrl);
-
-            ctx.drawImage(baseImg, 0, 0, 64, 64);
-            ctx.drawImage(overlayImg, 0, 0, 64, 64);
-            const skinData = tempCanvas.toDataURL();
-
-            const v = new lib.View({
-                canvas: cvs,
-                width: cvs.clientWidth,
-                height: cvs.clientHeight,
-                skin: skinData,
-                alpha: true 
-            });
-
-            v.animation = null;
-            v.autoRotate = false;
-            v.controls.enableRotate = false;
-            v.controls.enableZoom = false;
-            v.controls.enablePan = false;
-            v.globalLight.intensity = 3.0;
-
-            if (type === 'boots') {
-                v.fov = 40;
-                v.zoom = 1.3;
-                v.camera.position.y = -15;
-                v.controls.target.y = -15;
-            } else if (type === 'top') {
-                v.fov = 45;
-                v.zoom = 1.1;
-                v.camera.position.y = -2;
-                v.controls.target.y = -2;
-            } else {
-                v.fov = 50;
-                v.zoom = 0.85;
+            // Initialize previews for all overlays
+            for (const category in overlaysData) {
+                overlaysData[category].forEach(async overlay => {
+                    await createMiniPreview(category, overlay);
+                });
             }
-
-            v.render();
-        };
-
-        await createMiniViewer('preview-boots-festive', URL_BOOTS_FESTIVE, 'boots');
-        await createMiniViewer('preview-boots-ducky', URL_BOOTS_DUCKY, 'boots');
-        await createMiniViewer('preview-top-xmas1', URL_TOP_XMAS1, 'top');
-        await createMiniViewer('preview-top-xmas2', URL_TOP_XMAS2, 'top');
-        await createMiniViewer('preview-onesie-tree', URL_ONESIE_TREE, 'onesie');
-        await createMiniViewer('preview-onesie-midnight', URL_ONESIE_MIDNIGHT, 'onesie');
+        } catch (err) {
+            console.error("Failed to load overlays.json:", err);
+        }
     }
 
-    init3D();
+    // --- Create mini previews ---
+    async function createMiniPreview(category, overlay) {
+        const canvasId = overlay.previewCanvasId;
+        const cvs = document.getElementById(canvasId);
+        if (!cvs) return;
 
-    // --- GLOBAL FUNCTIONS ---
+        const tempCanvas = document.createElement('canvas');
+        tempCanvas.width = 64;
+        tempCanvas.height = 64;
+        const ctx = tempCanvas.getContext('2d');
+
+        const baseImg = await loadImage(currentSkinUrl);
+        const overlayImg = await loadImage(overlay.url);
+
+        ctx.drawImage(baseImg, 0, 0, 64, 64);
+        ctx.drawImage(overlayImg, 0, 0, 64, 64);
+        const skinData = tempCanvas.toDataURL();
+
+        const v = new skin3d.View({
+            canvas: cvs,
+            width: cvs.clientWidth,
+            height: cvs.clientHeight,
+            skin: skinData,
+            alpha: true
+        });
+
+        v.animation = null;
+        v.autoRotate = false;
+        v.controls.enableRotate = false;
+        v.controls.enableZoom = false;
+        v.controls.enablePan = false;
+        v.globalLight.intensity = 3.0;
+
+        // Camera adjustments per category
+        if (category === 'boots') {
+            v.fov = 40;
+            v.zoom = 1.3;
+            v.camera.position.y = -15;
+            v.controls.target.y = -15;
+        } else if (category === 'top') {
+            v.fov = 45;
+            v.zoom = 1.1;
+            v.camera.position.y = -2;
+            v.controls.target.y = -2;
+        } else {
+            v.fov = 50;
+            v.zoom = 0.85;
+        }
+
+        v.render();
+    }
+
+    // --- Load skin from username ---
     window.loadFromUsername = function() {
         const username = document.getElementById('usernameInput').value.trim();
         const status = document.getElementById('fetchStatus');
@@ -455,40 +459,7 @@
         };
     };
 
-    window.handleFileUpload = function(input) {
-        if (!input.files[0]) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            const img = new Image();
-            img.onload = () => {
-                currentSkinUrl = e.target.result;
-                regenerateSkin();
-            };
-            img.src = e.target.result;
-        };
-        reader.readAsDataURL(input.files[0]);
-    };
-
-    window.toggleLayer = function(category, id) {
-        const url = (category === 'boots' && id === 'festive') ? URL_BOOTS_FESTIVE :
-                    (category === 'boots' && id === 'ducky') ? URL_BOOTS_DUCKY :
-                    (category === 'top' && id === 'xmas1') ? URL_TOP_XMAS1 :
-                    (category === 'top' && id === 'xmas2') ? URL_TOP_XMAS2 :
-                    (category === 'onesie' && id === 'tree') ? URL_ONESIE_TREE : 
-                    (category === 'onesie' && id === 'midnight') ? URL_ONESIE_MIDNIGHT : null;
-
-        if (!url) return;
-
-        if (activeLayers[category] && activeLayers[category].id === id) {
-            activeLayers[category] = null;
-        } else {
-            activeLayers[category] = { id: id, url: url };
-        }
-
-        updateUI();
-        regenerateSkin();
-    };
-
+    // --- Handle custom file upload ---
     window.handleCustomUpload = function(category, input) {
         if (!input.files[0]) return;
         const reader = new FileReader();
@@ -500,6 +471,24 @@
         reader.readAsDataURL(input.files[0]);
     };
 
+    // --- Toggle overlay layer ---
+    window.toggleLayer = function(category, id) {
+        if (!overlaysData || !overlaysData[category]) return;
+
+        const overlay = overlaysData[category].find(o => o.id === id);
+        if (!overlay) return;
+
+        if (activeLayers[category] && activeLayers[category].id === id) {
+            activeLayers[category] = null;
+        } else {
+            activeLayers[category] = { id: overlay.id, url: overlay.url };
+        }
+
+        updateUI();
+        regenerateSkin();
+    };
+
+    // --- Update UI ---
     function updateUI() {
         document.querySelectorAll('button[id^="btn-"]').forEach(btn => btn.classList.remove('btn-active'));
         document.querySelectorAll('label[id^="btn-"]').forEach(btn => {
@@ -508,54 +497,42 @@
             btn.classList.remove('border-green-400', 'border-solid');
         });
 
-        // Update Boots UI
-        if (activeLayers.boots) {
-            const btnId = `btn-boots-${activeLayers.boots.id}`;
-            const el = document.getElementById(btnId);
-            if (el) toggleElStyle(el);
-        }
-
-        // Update Top UI
-        if (activeLayers.top) {
-            const btnId = `btn-top-${activeLayers.top.id}`;
-            const el = document.getElementById(btnId);
-            if (el) toggleElStyle(el);
-        }
-
-        // Update Onesie UI
-        if (activeLayers.onesie) {
-            const btnId = `btn-onesie-${activeLayers.onesie.id}`;
-            const el = document.getElementById(btnId);
-            if (el) toggleElStyle(el);
+        for (const category in activeLayers) {
+            if (activeLayers[category]) {
+                const btnId = `btn-${category}-${activeLayers[category].id}`;
+                const el = document.getElementById(btnId);
+                if (el) toggleElStyle(el);
+            }
         }
     }
 
     function toggleElStyle(el) {
-         if (el.tagName === 'BUTTON') el.classList.add('btn-active');
+        if (el.tagName === 'BUTTON') el.classList.add('btn-active');
         else {
             el.classList.add('btn-active', 'border-green-400', 'border-solid');
             el.classList.remove('border-slate-600', 'border-dashed');
         }
     }
 
+    // --- Download final skin ---
     window.downloadSkin = function() {
         const link = document.createElement('a');
-        link.download = 'skin-with-boots.png';
+        link.download = 'skin-with-overlays.png';
         link.href = processingCanvas.toDataURL('image/png');
         link.click();
     };
 
+    // --- Toggle walking animation ---
     window.toggleWalk = function() {
-        if (viewer) {
-            if (viewer.animation instanceof skin3d.WalkingAnimation) {
-                viewer.animation = new skin3d.IdleAnimation();
-            } else {
-                viewer.animation = new skin3d.WalkingAnimation();
-            }
+        if (!viewer) return;
+        if (viewer.animation instanceof skin3d.WalkingAnimation) {
+            viewer.animation = new skin3d.IdleAnimation();
+        } else {
+            viewer.animation = new skin3d.WalkingAnimation();
         }
     };
 
-    // --- REGENERATION ---
+    // --- Utility: load image ---
     function loadImage(src) {
         return new Promise((resolve, reject) => {
             const img = new Image();
@@ -566,6 +543,7 @@
         });
     }
 
+    // --- Regenerate skin ---
     async function regenerateSkin() {
         pCtx.clearRect(0, 0, 64, 64);
 
@@ -584,7 +562,7 @@
                 const layer = layersToApply[i];
                 const overlayImg = loadedImages[i];
 
-                // Handle clearing zones
+                // Clear necessary zones depending on type
                 if (layer.type === 'onesie') {
                     const wipeZones = [
                         { x: 16, y: 32, w: 24, h: 16 },
@@ -593,41 +571,15 @@
                         { x: 0, y: 32, w: 16, h: 16 },
                         { x: 0, y: 48, w: 16, h: 16 }
                     ];
-                    const headNonFaceZones = [
-                        { x: 40, y: 0, w: 8, h: 8 }, { x: 48, y: 0, w: 8, h: 8 },
-                        { x: 32, y: 8, w: 8, h: 8 }, { x: 48, y: 8, w: 8, h: 8 }, { x: 56, y: 8, w: 8, h: 8 }
-                    ];
-                    [...wipeZones, ...headNonFaceZones].forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
-
-                    const faceZone = { x: 40, y: 8, w: 8, h: 8 };
-                    for(let y = faceZone.y; y < faceZone.y + faceZone.h; y++) {
-                        for(let x = faceZone.x; x < faceZone.x + faceZone.w; x++) {
-                            const oData = pCtx.getImageData(x, y, 1, 1).data;
-                            if (oData[3] > 0) pCtx.clearRect(x, y, 1, 1);
-                        }
-                    }
-
+                    wipeZones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
                 } else if (layer.type === 'boots') {
                     const zones = [{ x: 0, y: 32, w: 16, h: 16 }, { x: 0, y: 48, w: 16, h: 16 }];
-                    zones.forEach(zone => {
-                        let topY = zone.y + zone.h;
-                        let foundPixel = false;
-                        const oData = pCtx.getImageData(zone.x, zone.y, zone.w, zone.h).data;
-                        for(let y = 0; y < zone.h; y++) {
-                            for(let x = 0; x < zone.w; x++) {
-                                if(oData[(y*zone.w + x)*4+3] > 0) {
-                                    if(y < topY) topY = y;
-                                    foundPixel = true;
-                                }
-                            }
-                        }
-                        if(foundPixel) pCtx.clearRect(zone.x, zone.y + topY, zone.w, zone.h - (topY));
-                    });
+                    zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
                 } else if (layer.type === 'top') {
                     const zones = [
-                         { x: 16, y: 32, w: 24, h: 16 },
-                         { x: 40, y: 32, w: 16, h: 16 },
-                         { x: 48, y: 48, w: 16, h: 16 }
+                        { x: 16, y: 32, w: 24, h: 16 },
+                        { x: 40, y: 32, w: 16, h: 16 },
+                        { x: 48, y: 48, w: 16, h: 16 }
                     ];
                     zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
                 }
@@ -637,13 +589,16 @@
 
             // Update 3D viewer
             if (viewer) viewer.loadSkin(processingCanvas.toDataURL());
+
         } catch (err) {
             console.error("Error regenerating skin:", err);
         }
     }
 
     regenerateSkin();
+    init3D();
 </script>
+
 
 </body>
 </html>
