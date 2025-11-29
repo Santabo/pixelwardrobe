@@ -308,371 +308,342 @@
             <p>PixelWardrobe &copy; 2025. Not affiliated with Mojang or Microsoft.</p>
         </footer>
     </div>
+<script type="module">
+    // Initialize Icons
+    if (typeof lucide !== 'undefined') lucide.createIcons();
 
-    <!-- MAIN SCRIPT -->
-    <script type="module">
-        // Initialize Icons
-        if (typeof lucide !== 'undefined') lucide.createIcons();
+    // Use ES Module import from reliable CDN
+    import * as skin3d from 'https://esm.sh/skin3d@0.0.11';
 
-        // Use ES Module import from reliable CDN
-        import * as skin3d from 'https://esm.sh/skin3d@0.0.11';
+    // State Variables
+    const canvas3d = document.getElementById('skin_view_container');
+    const processingCanvas = document.getElementById('mainCanvas');
+    const pCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
 
-        // State Variables
-        const canvas3d = document.getElementById('skin_view_container');
-        const processingCanvas = document.getElementById('mainCanvas');
-        const pCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
-        
-        let currentSkinUrl = 'https://minotar.net/skin/MHF_Steve';
-        
-        // Active Layers State
-        let activeLayers = {
-            boots: null,
-            top: null,
-            onesie: null
-        };
+    let currentSkinUrl = 'https://minotar.net/skin/MHF_Steve';
 
-        let viewer = null;
+    // Active Layers State
+    let activeLayers = {
+        boots: null,
+        top: null,
+        onesie: null
+    };
 
-        // Constants
-        const URL_BOOTS_FESTIVE = "https://i.ibb.co/JW4zn3n7/67ef35776c4b2ca55415a62bfce303a55c926f94.png";
-        const URL_BOOTS_DUCKY = "https://i.ibb.co/KcjK5NHB/830574a5b1d4a92126ed7b3e00ff3239e1444bb1.png";
-        const URL_TOP_XMAS1 = "https://i.ibb.co/r2tX2Z3w/pixil-frame-0-9.png";
-        const URL_TOP_XMAS2 = "https://i.ibb.co/XrB0GBF4/pixil-frame-0-10.png";
-        const URL_ONESIE_TREE = "https://i.ibb.co/Fb30S4zb/00e93117971d1691b9d1dbb65376dd77255a5069.png";
-        const URL_ONESIE_MIDNIGHT = "https://i.ibb.co/zhQ9834p/f5d43387223e8803859b36edb76d20af4271fa45.png";
-        const URL_DEFAULT_STEVE = "https://minotar.net/skin/MHF_Steve";
+    let viewer = null;
 
-        // --- 3D INIT ---
-        async function init3D() {
-            try {
-                // Main Viewer
-                viewer = new skin3d.View({
-                    canvas: canvas3d,
-                    width: canvas3d.parentElement.clientWidth,
-                    height: canvas3d.parentElement.clientHeight,
-                    skin: currentSkinUrl
-                });
+    // Constants (i.ibb URLs)
+    const URL_BOOTS_FESTIVE = "https://i.ibb.co/JW4zn3n7/67ef35776c4b2ca55415a62bfce303a55c926f94.png";
+    const URL_BOOTS_DUCKY = "https://i.ibb.co/KcjK5NHB/830574a5b1d4a92126ed7b3e00ff3239e1444bb1.png";
+    const URL_TOP_XMAS1 = "https://i.ibb.co/r2tX2Z3w/pixil-frame-0-9.png";
+    const URL_TOP_XMAS2 = "https://i.ibb.co/XrB0GBF4/pixil-frame-0-10.png";
+    const URL_ONESIE_TREE = "https://i.ibb.co/Fb30S4zb/00e93117971d1691b9d1dbb65376dd77255a5069.png";
+    const URL_ONESIE_MIDNIGHT = "https://i.ibb.co/zhQ9834p/f5d43387223e8803859b36edb76d20af4271fa45.png";
+    const URL_DEFAULT_STEVE = "https://minotar.net/skin/MHF_Steve";
 
-                viewer.animation = new skin3d.IdleAnimation();
-                viewer.autoRotate = true;
-                viewer.autoRotateSpeed = 0.5;
-                // Boost lighting for main viewer
-                viewer.globalLight.intensity = 3.0;
-                
-                // Resize Observer for smoother 3D canvas resizing
-                const resizeObserver = new ResizeObserver(() => {
-                    if (viewer) {
-                        viewer.width = canvas3d.parentElement.clientWidth;
-                        viewer.height = canvas3d.parentElement.clientHeight;
-                    }
-                });
-                resizeObserver.observe(canvas3d.parentElement);
+    // --- 3D INIT ---
+    async function init3D() {
+        try {
+            viewer = new skin3d.View({
+                canvas: canvas3d,
+                width: canvas3d.parentElement.clientWidth,
+                height: canvas3d.parentElement.clientHeight,
+                skin: currentSkinUrl
+            });
 
-                // Init Small Previews
-                await initPreviews(skin3d);
+            viewer.animation = new skin3d.IdleAnimation();
+            viewer.autoRotate = true;
+            viewer.autoRotateSpeed = 0.5;
+            viewer.globalLight.intensity = 3.0;
 
-            } catch (e) {
-                console.error("Failed to init skin3d:", e);
-                document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-8 h-8 mb-2"></i>Error loading 3D Library.<br><span class="text-xs text-white/50">${e.message}</span></div>`;
-                if (typeof lucide !== 'undefined') lucide.createIcons();
-            }
-        }
-
-        async function initPreviews(lib) {
-            const createMiniViewer = async (canvasId, overlayUrl, type) => {
-                const cvs = document.getElementById(canvasId);
-                if (!cvs) return;
-
-                // Create merged texture: Steve + Overlay
-                const tempCanvas = document.createElement('canvas');
-                tempCanvas.width = 64; tempCanvas.height = 64;
-                const ctx = tempCanvas.getContext('2d');
-
-                const baseImg = await loadImage(URL_DEFAULT_STEVE);
-                const overlayImg = await loadImage(overlayUrl);
-
-                // Draw Base Steve
-                ctx.drawImage(baseImg, 0, 0, 64, 64);
-                // Draw Overlay on top
-                ctx.drawImage(overlayImg, 0, 0, 64, 64);
-                
-                const skinData = tempCanvas.toDataURL();
-
-                const v = new lib.View({
-                    canvas: cvs,
-                    width: cvs.clientWidth,
-                    height: cvs.clientHeight,
-                    skin: skinData,
-                    alpha: true 
-                });
-
-                v.animation = null;
-                v.autoRotate = false;
-                v.controls.enableRotate = false;
-                v.controls.enableZoom = false;
-                v.controls.enablePan = false;
-                
-                // --- IMPROVED LIGHTING ---
-                v.globalLight.intensity = 3.0; 
-
-                // Camera Customization
-                if (type === 'boots') {
-                    v.fov = 40; 
-                    v.zoom = 1.3;
-                    v.camera.position.y = -15; 
-                    v.controls.target.y = -15;
-                } else if (type === 'top') {
-                    v.fov = 45;
-                    v.zoom = 1.1;
-                    v.camera.position.y = -2;
-                    v.controls.target.y = -2;
-                } else {
-                    // Show full body
-                    v.fov = 50;
-                    v.zoom = 0.85;
+            const resizeObserver = new ResizeObserver(() => {
+                if (viewer) {
+                    viewer.width = canvas3d.parentElement.clientWidth;
+                    viewer.height = canvas3d.parentElement.clientHeight;
                 }
-                
-                // Force a render
-                v.render();
-            };
+            });
+            resizeObserver.observe(canvas3d.parentElement);
 
-            await createMiniViewer('preview-boots-festive', URL_BOOTS_FESTIVE, 'boots');
-            await createMiniViewer('preview-boots-ducky', URL_BOOTS_DUCKY, 'boots');
-            await createMiniViewer('preview-top-xmas1', URL_TOP_XMAS1, 'top');
-            await createMiniViewer('preview-top-xmas2', URL_TOP_XMAS2, 'top');
-            await createMiniViewer('preview-onesie-tree', URL_ONESIE_TREE, 'onesie');
-            await createMiniViewer('preview-onesie-midnight', URL_ONESIE_MIDNIGHT, 'onesie');
+            await initPreviews(skin3d);
+
+        } catch (e) {
+            console.error("Failed to init skin3d:", e);
+            document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-8 h-8 mb-2"></i>Error loading 3D Library.<br><span class="text-xs text-white/50">${e.message}</span></div>`;
+            if (typeof lucide !== 'undefined') lucide.createIcons();
         }
+    }
 
-        init3D();
+    async function initPreviews(lib) {
+        const createMiniViewer = async (canvasId, overlayUrl, type) => {
+            const cvs = document.getElementById(canvasId);
+            if (!cvs) return;
 
-        // --- GLOBAL FUNCTIONS ---
+            const tempCanvas = document.createElement('canvas');
+            tempCanvas.width = 64; tempCanvas.height = 64;
+            const ctx = tempCanvas.getContext('2d');
 
-        window.loadFromUsername = function() {
-            const username = document.getElementById('usernameInput').value.trim();
-            const status = document.getElementById('fetchStatus');
-            if (!username) return;
+            const baseImg = await loadImage(URL_DEFAULT_STEVE);
+            const overlayImg = await loadImage(overlayUrl);
 
-            status.innerText = "Fetching...";
-            status.className = "text-xs mt-1 text-blue-400 h-4";
+            ctx.drawImage(baseImg, 0, 0, 64, 64);
+            ctx.drawImage(overlayImg, 0, 0, 64, 64);
+            const skinData = tempCanvas.toDataURL();
 
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.src = `https://minotar.net/skin/${username}`;
-            img.onload = () => {
-                currentSkinUrl = img.src;
-                regenerateSkin();
-                status.innerText = "Loaded!";
-                status.className = "text-xs mt-1 text-green-400 h-4";
-            };
-            img.onerror = () => {
-                status.innerText = "User not found";
-                status.className = "text-xs mt-1 text-red-400 h-4";
-            };
-        };
+            const v = new lib.View({
+                canvas: cvs,
+                width: cvs.clientWidth,
+                height: cvs.clientHeight,
+                skin: skinData,
+                alpha: true 
+            });
 
-        window.handleFileUpload = function(input) {
-            if (!input.files[0]) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                const img = new Image();
-                img.onload = () => {
-                    currentSkinUrl = e.target.result;
-                    regenerateSkin();
-                };
-                img.src = e.target.result;
-            };
-            reader.readAsDataURL(input.files[0]);
-        };
+            v.animation = null;
+            v.autoRotate = false;
+            v.controls.enableRotate = false;
+            v.controls.enableZoom = false;
+            v.controls.enablePan = false;
+            v.globalLight.intensity = 3.0;
 
-        window.toggleLayer = function(category, id) {
-            const url = (category === 'boots' && id === 'festive') ? URL_BOOTS_FESTIVE :
-                        (category === 'boots' && id === 'ducky') ? URL_BOOTS_DUCKY :
-                        (category === 'top' && id === 'xmas1') ? URL_TOP_XMAS1 :
-                        (category === 'top' && id === 'xmas2') ? URL_TOP_XMAS2 :
-                        (category === 'onesie' && id === 'tree') ? URL_ONESIE_TREE : 
-                        (category === 'onesie' && id === 'midnight') ? URL_ONESIE_MIDNIGHT : null;
-
-            if (!url) return;
-
-            if (activeLayers[category] && activeLayers[category].id === id) {
-                activeLayers[category] = null;
+            if (type === 'boots') {
+                v.fov = 40;
+                v.zoom = 1.3;
+                v.camera.position.y = -15;
+                v.controls.target.y = -15;
+            } else if (type === 'top') {
+                v.fov = 45;
+                v.zoom = 1.1;
+                v.camera.position.y = -2;
+                v.controls.target.y = -2;
             } else {
-                activeLayers[category] = { id: id, url: url };
+                v.fov = 50;
+                v.zoom = 0.85;
             }
 
+            v.render();
+        };
+
+        await createMiniViewer('preview-boots-festive', URL_BOOTS_FESTIVE, 'boots');
+        await createMiniViewer('preview-boots-ducky', URL_BOOTS_DUCKY, 'boots');
+        await createMiniViewer('preview-top-xmas1', URL_TOP_XMAS1, 'top');
+        await createMiniViewer('preview-top-xmas2', URL_TOP_XMAS2, 'top');
+        await createMiniViewer('preview-onesie-tree', URL_ONESIE_TREE, 'onesie');
+        await createMiniViewer('preview-onesie-midnight', URL_ONESIE_MIDNIGHT, 'onesie');
+    }
+
+    init3D();
+
+    // --- GLOBAL FUNCTIONS ---
+    window.loadFromUsername = function() {
+        const username = document.getElementById('usernameInput').value.trim();
+        const status = document.getElementById('fetchStatus');
+        if (!username) return;
+
+        status.innerText = "Fetching...";
+        status.className = "text-xs mt-1 text-blue-400 h-4";
+
+        const img = new Image();
+        img.crossOrigin = "anonymous";
+        img.src = `https://minotar.net/skin/${username}`;
+        img.onload = () => {
+            currentSkinUrl = img.src;
+            regenerateSkin();
+            status.innerText = "Loaded!";
+            status.className = "text-xs mt-1 text-green-400 h-4";
+        };
+        img.onerror = () => {
+            status.innerText = "User not found";
+            status.className = "text-xs mt-1 text-red-400 h-4";
+        };
+    };
+
+    window.handleFileUpload = function(input) {
+        if (!input.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            const img = new Image();
+            img.onload = () => {
+                currentSkinUrl = e.target.result;
+                regenerateSkin();
+            };
+            img.src = e.target.result;
+        };
+        reader.readAsDataURL(input.files[0]);
+    };
+
+    window.toggleLayer = function(category, id) {
+        const url = (category === 'boots' && id === 'festive') ? URL_BOOTS_FESTIVE :
+                    (category === 'boots' && id === 'ducky') ? URL_BOOTS_DUCKY :
+                    (category === 'top' && id === 'xmas1') ? URL_TOP_XMAS1 :
+                    (category === 'top' && id === 'xmas2') ? URL_TOP_XMAS2 :
+                    (category === 'onesie' && id === 'tree') ? URL_ONESIE_TREE : 
+                    (category === 'onesie' && id === 'midnight') ? URL_ONESIE_MIDNIGHT : null;
+
+        if (!url) return;
+
+        if (activeLayers[category] && activeLayers[category].id === id) {
+            activeLayers[category] = null;
+        } else {
+            activeLayers[category] = { id: id, url: url };
+        }
+
+        updateUI();
+        regenerateSkin();
+    };
+
+    window.handleCustomUpload = function(category, input) {
+        if (!input.files[0]) return;
+        const reader = new FileReader();
+        reader.onload = (e) => {
+            activeLayers[category] = { id: 'custom', url: e.target.result };
             updateUI();
             regenerateSkin();
         };
+        reader.readAsDataURL(input.files[0]);
+    };
 
-        window.handleCustomUpload = function(category, input) {
-            if (!input.files[0]) return;
-            const reader = new FileReader();
-            reader.onload = (e) => {
-                activeLayers[category] = { id: 'custom', url: e.target.result };
-                updateUI();
-                regenerateSkin();
-            };
-            reader.readAsDataURL(input.files[0]);
-        };
+    function updateUI() {
+        document.querySelectorAll('button[id^="btn-"]').forEach(btn => btn.classList.remove('btn-active'));
+        document.querySelectorAll('label[id^="btn-"]').forEach(btn => {
+            btn.classList.remove('btn-active');
+            btn.classList.add('border-slate-600', 'border-dashed');
+            btn.classList.remove('border-green-400', 'border-solid');
+        });
 
-        function updateUI() {
-            document.querySelectorAll('button[id^="btn-"]').forEach(btn => btn.classList.remove('btn-active'));
-            document.querySelectorAll('label[id^="btn-"]').forEach(btn => {
-                btn.classList.remove('btn-active');
-                btn.classList.add('border-slate-600', 'border-dashed');
-                btn.classList.remove('border-green-400', 'border-solid');
-            });
-
-            // Update Boots UI
-            if (activeLayers.boots) {
-                const btnId = `btn-boots-${activeLayers.boots.id}`;
-                const el = document.getElementById(btnId);
-                if (el) toggleElStyle(el);
-            }
-
-            // Update Top UI
-            if (activeLayers.top) {
-                const btnId = `btn-top-${activeLayers.top.id}`;
-                const el = document.getElementById(btnId);
-                if (el) toggleElStyle(el);
-            }
-
-            // Update Onesie UI
-            if (activeLayers.onesie) {
-                const btnId = `btn-onesie-${activeLayers.onesie.id}`;
-                const el = document.getElementById(btnId);
-                if (el) toggleElStyle(el);
-            }
+        // Update Boots UI
+        if (activeLayers.boots) {
+            const btnId = `btn-boots-${activeLayers.boots.id}`;
+            const el = document.getElementById(btnId);
+            if (el) toggleElStyle(el);
         }
 
-        function toggleElStyle(el) {
-             if (el.tagName === 'BUTTON') el.classList.add('btn-active');
-            else {
-                el.classList.add('btn-active', 'border-green-400', 'border-solid');
-                el.classList.remove('border-slate-600', 'border-dashed');
-            }
+        // Update Top UI
+        if (activeLayers.top) {
+            const btnId = `btn-top-${activeLayers.top.id}`;
+            const el = document.getElementById(btnId);
+            if (el) toggleElStyle(el);
         }
 
-        window.downloadSkin = function() {
-            const link = document.createElement('a');
-            link.download = 'skin-with-boots.png';
-            link.href = processingCanvas.toDataURL('image/png');
-            link.click();
-        };
-
-        window.toggleWalk = function() {
-            if (viewer) {
-                if (viewer.animation instanceof skin3d.WalkingAnimation) {
-                    viewer.animation = new skin3d.IdleAnimation();
-                } else {
-                    viewer.animation = new skin3d.WalkingAnimation();
-                }
-            }
-        };
-
-        // --- REGENERATION ---
-
-        function loadImage(src) {
-            return new Promise((resolve, reject) => {
-                const img = new Image();
-                img.crossOrigin = "anonymous";
-                img.onload = () => resolve(img);
-                img.onerror = reject;
-                img.src = src;
-            });
+        // Update Onesie UI
+        if (activeLayers.onesie) {
+            const btnId = `btn-onesie-${activeLayers.onesie.id}`;
+            const el = document.getElementById(btnId);
+            if (el) toggleElStyle(el);
         }
+    }
 
-        async function regenerateSkin() {
-            pCtx.clearRect(0, 0, 64, 64);
+    function toggleElStyle(el) {
+         if (el.tagName === 'BUTTON') el.classList.add('btn-active');
+        else {
+            el.classList.add('btn-active', 'border-green-400', 'border-solid');
+            el.classList.remove('border-slate-600', 'border-dashed');
+        }
+    }
 
-            try {
-                const baseImg = await loadImage(currentSkinUrl);
-                pCtx.drawImage(baseImg, 0, 0, 64, 64);
+    window.downloadSkin = function() {
+        const link = document.createElement('a');
+        link.download = 'skin-with-boots.png';
+        link.href = processingCanvas.toDataURL('image/png');
+        link.click();
+    };
 
-                let layersToApply = [];
-                // UPDATED ORDER: Top -> Onesie -> Boots
-                // This ensures Boots are drawn LAST, appearing OVER the onesie.
-                if (activeLayers.top) layersToApply.push({ ...activeLayers.top, type: 'top' });
-                if (activeLayers.onesie) layersToApply.push({ ...activeLayers.onesie, type: 'onesie' });
-                if (activeLayers.boots) layersToApply.push({ ...activeLayers.boots, type: 'boots' });
+    window.toggleWalk = function() {
+        if (viewer) {
+            if (viewer.animation instanceof skin3d.WalkingAnimation) {
+                viewer.animation = new skin3d.IdleAnimation();
+            } else {
+                viewer.animation = new skin3d.WalkingAnimation();
+            }
+        }
+    };
 
-                const loadedImages = await Promise.all(layersToApply.map(l => loadImage(l.url)));
+    // --- REGENERATION ---
+    function loadImage(src) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = src;
+        });
+    }
 
-                for (let i = 0; i < layersToApply.length; i++) {
-                    const layer = layersToApply[i];
-                    const overlayImg = loadedImages[i];
+    async function regenerateSkin() {
+        pCtx.clearRect(0, 0, 64, 64);
 
-                    const tC = document.createElement('canvas');
-                    tC.width = 64; tC.height = 64;
-                    const tCtx = tC.getContext('2d');
-                    tCtx.drawImage(overlayImg, 0, 0, 64, 64);
-                    const oData = tCtx.getImageData(0, 0, 64, 64).data;
+        try {
+            const baseImg = await loadImage(currentSkinUrl);
+            pCtx.drawImage(baseImg, 0, 0, 64, 64);
 
-                    if (layer.type === 'onesie') {
-                        const wipeZones = [
-                            { x: 16, y: 32, w: 24, h: 16 }, // Body Overlay
-                            { x: 40, y: 32, w: 16, h: 16 }, // R Arm Overlay
-                            { x: 48, y: 48, w: 16, h: 16 }, // L Arm Overlay
-                            { x: 0, y: 32, w: 16, h: 16 },  // R Leg Overlay
-                            { x: 0, y: 48, w: 16, h: 16 }   // L Leg Overlay
-                        ];
-                        const headNonFaceZones = [
-                            { x: 40, y: 0, w: 8, h: 8 }, { x: 48, y: 0, w: 8, h: 8 },
-                            { x: 32, y: 8, w: 8, h: 8 }, { x: 48, y: 8, w: 8, h: 8 }, { x: 56, y: 8, w: 8, h: 8 }
-                        ];
-                        [...wipeZones, ...headNonFaceZones].forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
+            let layersToApply = [];
+            if (activeLayers.top) layersToApply.push({ ...activeLayers.top, type: 'top' });
+            if (activeLayers.onesie) layersToApply.push({ ...activeLayers.onesie, type: 'onesie' });
+            if (activeLayers.boots) layersToApply.push({ ...activeLayers.boots, type: 'boots' });
 
-                        const faceZone = { x: 40, y: 8, w: 8, h: 8 };
-                        for(let y = faceZone.y; y < faceZone.y + faceZone.h; y++) {
-                            for(let x = faceZone.x; x < faceZone.x + faceZone.w; x++) {
-                                if (oData[(y * 64 + x) * 4 + 3] > 0) pCtx.clearRect(x, y, 1, 1);
-                            }
+            const loadedImages = await Promise.all(layersToApply.map(l => loadImage(l.url)));
+
+            for (let i = 0; i < layersToApply.length; i++) {
+                const layer = layersToApply[i];
+                const overlayImg = loadedImages[i];
+
+                // Handle clearing zones
+                if (layer.type === 'onesie') {
+                    const wipeZones = [
+                        { x: 16, y: 32, w: 24, h: 16 },
+                        { x: 40, y: 32, w: 16, h: 16 },
+                        { x: 48, y: 48, w: 16, h: 16 },
+                        { x: 0, y: 32, w: 16, h: 16 },
+                        { x: 0, y: 48, w: 16, h: 16 }
+                    ];
+                    const headNonFaceZones = [
+                        { x: 40, y: 0, w: 8, h: 8 }, { x: 48, y: 0, w: 8, h: 8 },
+                        { x: 32, y: 8, w: 8, h: 8 }, { x: 48, y: 8, w: 8, h: 8 }, { x: 56, y: 8, w: 8, h: 8 }
+                    ];
+                    [...wipeZones, ...headNonFaceZones].forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
+
+                    const faceZone = { x: 40, y: 8, w: 8, h: 8 };
+                    for(let y = faceZone.y; y < faceZone.y + faceZone.h; y++) {
+                        for(let x = faceZone.x; x < faceZone.x + faceZone.w; x++) {
+                            const oData = pCtx.getImageData(x, y, 1, 1).data;
+                            if (oData[3] > 0) pCtx.clearRect(x, y, 1, 1);
                         }
+                    }
 
-                    } else if (layer.type === 'boots') {
-                        // Clear lower legs overlay of whatever is underneath (skin or onesie)
-                        const zones = [{ x: 0, y: 32, w: 16, h: 16 }, { x: 0, y: 48, w: 16, h: 16 }];
-                        zones.forEach(zone => {
-                            let topY = zone.y + zone.h;
-                            let foundPixel = false;
-                            for(let y = zone.y; y < zone.y + zone.h; y++) {
-                                for(let x = zone.x; x < zone.x + zone.w; x++) {
-                                    if(oData[(y * 64 + x) * 4 + 3] > 0) {
-                                        if(y < topY) topY = y;
-                                        foundPixel = true;
-                                    }
+                } else if (layer.type === 'boots') {
+                    const zones = [{ x: 0, y: 32, w: 16, h: 16 }, { x: 0, y: 48, w: 16, h: 16 }];
+                    zones.forEach(zone => {
+                        let topY = zone.y + zone.h;
+                        let foundPixel = false;
+                        const oData = pCtx.getImageData(zone.x, zone.y, zone.w, zone.h).data;
+                        for(let y = 0; y < zone.h; y++) {
+                            for(let x = 0; x < zone.w; x++) {
+                                if(oData[(y*zone.w + x)*4+3] > 0) {
+                                    if(y < topY) topY = y;
+                                    foundPixel = true;
                                 }
                             }
-                            if(foundPixel) pCtx.clearRect(zone.x, topY, zone.w, (zone.y + zone.h) - topY);
-                        });
-                    } else if (layer.type === 'top') {
-                        // Clear torso/arm overlays of base skin so the jumper doesn't z-fight
-                        const zones = [
-                             { x: 16, y: 32, w: 24, h: 16 }, // Body Overlay
-                             { x: 40, y: 32, w: 16, h: 16 }, // R Arm Overlay
-                             { x: 48, y: 48, w: 16, h: 16 }  // L Arm Overlay
-                        ];
-                        zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
-                    }
-                    
-                    pCtx.drawImage(overlayImg, 0, 0, 64, 64);
+                        }
+                        if(foundPixel) pCtx.clearRect(zone.x, zone.y + topY, zone.w, zone.h - (topY));
+                    });
+                } else if (layer.type === 'top') {
+                    const zones = [
+                         { x: 16, y: 32, w: 24, h: 16 },
+                         { x: 40, y: 32, w: 16, h: 16 },
+                         { x: 48, y: 48, w: 16, h: 16 }
+                    ];
+                    zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
                 }
-                updateViewer();
-            } catch (err) {
-                console.error("Error regenerating skin:", err);
-            }
-        }
 
-        function updateViewer() {
-            if (viewer) {
-                const combinedSkinData = processingCanvas.toDataURL();
-                viewer.loadSkin(combinedSkinData);
+                pCtx.drawImage(overlayImg, 0, 0, 64, 64);
             }
-        }
-        
-        regenerateSkin();
 
-    </script>
+            // Update 3D viewer
+            if (viewer) viewer.loadSkin(processingCanvas.toDataURL());
+        } catch (err) {
+            console.error("Error regenerating skin:", err);
+        }
+    }
+
+    regenerateSkin();
+</script>
+
 </body>
 </html>
