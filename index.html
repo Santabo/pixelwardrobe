@@ -326,7 +326,7 @@ let activeLayers = {
     onesie: null
 };
 
-// --- Utility: load image ---
+// --- Load image utility ---
 function loadImage(src) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -337,7 +337,7 @@ function loadImage(src) {
     });
 }
 
-// --- Initialize 3D viewer ---
+// --- Initialize 3D Viewer ---
 async function init3D() {
     viewer = new skin3d.View({
         canvas: canvas3d,
@@ -357,20 +357,21 @@ async function init3D() {
     resizeObserver.observe(canvas3d.parentElement);
 }
 
-// --- Fetch overlays JSON and build UI ---
+// --- Fetch overlays.json ---
 async function fetchOverlays() {
     try {
         const res = await fetch('overlays.json');
         overlaysData = await res.json();
         currentSkinUrl = overlaysData.defaultSkin || 'https://minotar.net/skin/MHF_Steve';
+        await init3D();
         generateUI();
-        regenerateSkin();
+        await regenerateSkin();
     } catch (err) {
-        console.error("Failed to load overlays.json:", err);
+        console.error("Failed to fetch overlays.json:", err);
     }
 }
 
-// --- Generate UI dynamically ---
+// --- Generate overlay buttons dynamically ---
 function generateUI() {
     const container = document.getElementById('overlayContainer');
     container.innerHTML = '';
@@ -385,23 +386,19 @@ function generateUI() {
         catDiv.appendChild(title);
 
         overlaysData[category].forEach(overlay => {
-            const wrapper = document.createElement('div');
-            wrapper.className = 'inline-block text-center mr-2 mb-2';
-
             const btn = document.createElement('button');
             btn.id = `btn-${category}-${overlay.id}`;
-            btn.className = 'w-16 h-16 border-2 border-slate-600 border-dashed rounded';
+            btn.className = 'w-16 h-16 border-2 border-slate-600 border-dashed rounded mr-2 mb-2';
             btn.title = overlay.name;
             btn.onclick = () => toggleLayer(category, overlay.id);
-            wrapper.appendChild(btn);
+            catDiv.appendChild(btn);
 
+            // Optional: mini preview
             const previewCanvas = document.createElement('canvas');
             previewCanvas.width = 64;
             previewCanvas.height = 64;
-            previewCanvas.className = 'hidden';
-            wrapper.appendChild(previewCanvas);
-
-            catDiv.appendChild(wrapper);
+            previewCanvas.className = 'inline-block';
+            catDiv.appendChild(previewCanvas);
 
             createMiniPreview(category, overlay, previewCanvas);
         });
@@ -410,10 +407,11 @@ function generateUI() {
     }
 }
 
-// --- Create mini preview ---
+// --- Mini 3D preview ---
 async function createMiniPreview(category, overlay, canvas) {
     const tempCanvas = document.createElement('canvas');
-    tempCanvas.width = 64; tempCanvas.height = 64;
+    tempCanvas.width = 64;
+    tempCanvas.height = 64;
     const ctx = tempCanvas.getContext('2d');
 
     const baseImg = await loadImage(currentSkinUrl);
@@ -431,7 +429,6 @@ async function createMiniPreview(category, overlay, canvas) {
         skin: skinData,
         alpha: true
     });
-
     v.animation = null;
     v.autoRotate = false;
     v.controls.enableRotate = false;
@@ -439,8 +436,6 @@ async function createMiniPreview(category, overlay, canvas) {
     v.controls.enablePan = false;
     v.globalLight.intensity = 3.0;
     v.render();
-
-    canvas.classList.remove('hidden'); // Show canvas
 }
 
 // --- Toggle layer ---
@@ -458,7 +453,7 @@ function toggleLayer(category, id) {
     regenerateSkin();
 }
 
-// --- Update UI ---
+// --- Update button UI ---
 function updateUI() {
     for (const category in activeLayers) {
         overlaysData[category].forEach(overlay => {
@@ -475,26 +470,21 @@ function updateUI() {
     }
 }
 
-// --- Regenerate combined skin ---
+// --- Regenerate skin with overlays ---
 async function regenerateSkin() {
     pCtx.clearRect(0, 0, 64, 64);
-
     try {
         const baseImg = await loadImage(currentSkinUrl);
         pCtx.drawImage(baseImg, 0, 0, 64, 64);
 
         let layersToApply = [];
-        if (activeLayers.top) layersToApply.push({ ...activeLayers.top, type: 'top' });
-        if (activeLayers.onesie) layersToApply.push({ ...activeLayers.onesie, type: 'onesie' });
-        if (activeLayers.boots) layersToApply.push({ ...activeLayers.boots, type: 'boots' });
+        if (activeLayers.top) layersToApply.push(activeLayers.top);
+        if (activeLayers.onesie) layersToApply.push(activeLayers.onesie);
+        if (activeLayers.boots) layersToApply.push(activeLayers.boots);
 
         const loadedImages = await Promise.all(layersToApply.map(l => loadImage(l.url)));
-
         for (let i = 0; i < layersToApply.length; i++) {
-            const layer = layersToApply[i];
-            const overlayImg = loadedImages[i];
-
-            pCtx.drawImage(overlayImg, 0, 0, 64, 64);
+            pCtx.drawImage(loadedImages[i], 0, 0, 64, 64);
         }
 
         if (viewer) viewer.loadSkin(processingCanvas.toDataURL());
@@ -503,26 +493,28 @@ async function regenerateSkin() {
     }
 }
 
-// --- Custom skin upload ---
+// --- Custom file upload ---
 window.handleFileUpload = function(input) {
     if (!input.files[0]) return;
     const reader = new FileReader();
     reader.onload = e => {
         currentSkinUrl = e.target.result;
         regenerateSkin();
+        generateUI(); // update previews if needed
     };
     reader.readAsDataURL(input.files[0]);
 };
 
-// --- Username skin load ---
+// --- Load skin from username ---
 window.loadFromUsername = function() {
     const username = document.getElementById('usernameInput').value.trim();
     if (!username) return;
     currentSkinUrl = `https://minotar.net/skin/${username}`;
     regenerateSkin();
+    generateUI();
 };
 
-// --- Download ---
+// --- Download skin ---
 window.downloadSkin = function() {
     const link = document.createElement('a');
     link.download = 'skin-with-overlays.png';
@@ -530,9 +522,8 @@ window.downloadSkin = function() {
     link.click();
 };
 
-init3D();
 fetchOverlays();
-regenerateSkin();
 </script>
+
 </body>
 </html>
