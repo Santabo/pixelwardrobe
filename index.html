@@ -309,294 +309,230 @@
         </footer>
     </div>
 <script type="module">
-    // Initialize Icons
-    if (typeof lucide !== 'undefined') lucide.createIcons();
+if (typeof lucide !== 'undefined') lucide.createIcons();
+import * as skin3d from 'https://esm.sh/skin3d@0.0.11';
 
-    // ES Module for skin3d
-    import * as skin3d from 'https://esm.sh/skin3d@0.0.11';
+const canvas3d = document.getElementById('skin_view_container');
+const processingCanvas = document.getElementById('mainCanvas');
+const pCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
 
-    // DOM References
-    const canvas3d = document.getElementById('skin_view_container');
-    const processingCanvas = document.getElementById('mainCanvas');
-    const pCtx = processingCanvas.getContext('2d', { willReadFrequently: true });
+let currentSkinUrl = '';
+let viewer = null;
+let overlaysData = null;
 
-    let currentSkinUrl = 'https://minotar.net/skin/MHF_Steve';
-    let viewer = null;
+let activeLayers = {
+    boots: null,
+    top: null,
+    onesie: null
+};
 
-    // Overlay data
-    let overlaysData = null;
-
-    // Active layers
-    let activeLayers = {
-        boots: null,
-        top: null,
-        onesie: null
-    };
-
-    // --- 3D INIT ---
-    async function init3D() {
-        try {
-            viewer = new skin3d.View({
-                canvas: canvas3d,
-                width: canvas3d.parentElement.clientWidth,
-                height: canvas3d.parentElement.clientHeight,
-                skin: currentSkinUrl
-            });
-
-            viewer.animation = new skin3d.IdleAnimation();
-            viewer.autoRotate = true;
-            viewer.autoRotateSpeed = 0.5;
-            viewer.globalLight.intensity = 3.0;
-
-            // Resize Observer
-            const resizeObserver = new ResizeObserver(() => {
-                if (viewer) {
-                    viewer.width = canvas3d.parentElement.clientWidth;
-                    viewer.height = canvas3d.parentElement.clientHeight;
-                }
-            });
-            resizeObserver.observe(canvas3d.parentElement);
-
-            // Load overlays dynamically
-            await fetchOverlays();
-        } catch (e) {
-            console.error("Failed to init skin3d:", e);
-            document.getElementById('previewContainer').innerHTML = `<div class="text-red-400 p-4 text-center flex flex-col items-center justify-center h-full"><i data-lucide="alert-triangle" class="w-8 h-8 mb-2"></i>Error loading 3D Library.<br><span class="text-xs text-white/50">${e.message}</span></div>`;
-            if (typeof lucide !== 'undefined') lucide.createIcons();
-        }
-    }
-
-    // --- Fetch overlays from JSON ---
-    async function fetchOverlays() {
-        try {
-            const res = await fetch('overlays.json');
-            overlaysData = await res.json();
-
-            // Initialize previews for all overlays
-            for (const category in overlaysData) {
-                overlaysData[category].forEach(async overlay => {
-                    await createMiniPreview(category, overlay);
-                });
-            }
-        } catch (err) {
-            console.error("Failed to load overlays.json:", err);
-        }
-    }
-
-    // --- Create mini previews ---
-    async function createMiniPreview(category, overlay) {
-        const canvasId = overlay.previewCanvasId;
-        const cvs = document.getElementById(canvasId);
-        if (!cvs) return;
-
-        const tempCanvas = document.createElement('canvas');
-        tempCanvas.width = 64;
-        tempCanvas.height = 64;
-        const ctx = tempCanvas.getContext('2d');
-
-        const baseImg = await loadImage(currentSkinUrl);
-        const overlayImg = await loadImage(overlay.url);
-
-        ctx.drawImage(baseImg, 0, 0, 64, 64);
-        ctx.drawImage(overlayImg, 0, 0, 64, 64);
-        const skinData = tempCanvas.toDataURL();
-
-        const v = new skin3d.View({
-            canvas: cvs,
-            width: cvs.clientWidth,
-            height: cvs.clientHeight,
-            skin: skinData,
-            alpha: true
-        });
-
-        v.animation = null;
-        v.autoRotate = false;
-        v.controls.enableRotate = false;
-        v.controls.enableZoom = false;
-        v.controls.enablePan = false;
-        v.globalLight.intensity = 3.0;
-
-        // Camera adjustments per category
-        if (category === 'boots') {
-            v.fov = 40;
-            v.zoom = 1.3;
-            v.camera.position.y = -15;
-            v.controls.target.y = -15;
-        } else if (category === 'top') {
-            v.fov = 45;
-            v.zoom = 1.1;
-            v.camera.position.y = -2;
-            v.controls.target.y = -2;
-        } else {
-            v.fov = 50;
-            v.zoom = 0.85;
-        }
-
-        v.render();
-    }
-
-    // --- Load skin from username ---
-    window.loadFromUsername = function() {
-        const username = document.getElementById('usernameInput').value.trim();
-        const status = document.getElementById('fetchStatus');
-        if (!username) return;
-
-        status.innerText = "Fetching...";
-        status.className = "text-xs mt-1 text-blue-400 h-4";
-
+// --- Utility: load image ---
+function loadImage(src) {
+    return new Promise((resolve, reject) => {
         const img = new Image();
         img.crossOrigin = "anonymous";
-        img.src = `https://minotar.net/skin/${username}`;
-        img.onload = () => {
-            currentSkinUrl = img.src;
-            regenerateSkin();
-            status.innerText = "Loaded!";
-            status.className = "text-xs mt-1 text-green-400 h-4";
-        };
-        img.onerror = () => {
-            status.innerText = "User not found";
-            status.className = "text-xs mt-1 text-red-400 h-4";
-        };
-    };
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+    });
+}
 
-    // --- Handle custom file upload ---
-    window.handleCustomUpload = function(category, input) {
-        if (!input.files[0]) return;
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            activeLayers[category] = { id: 'custom', url: e.target.result };
-            updateUI();
-            regenerateSkin();
-        };
-        reader.readAsDataURL(input.files[0]);
-    };
+// --- Initialize 3D viewer ---
+async function init3D() {
+    viewer = new skin3d.View({
+        canvas: canvas3d,
+        width: canvas3d.parentElement.clientWidth,
+        height: canvas3d.parentElement.clientHeight,
+        skin: currentSkinUrl
+    });
+    viewer.animation = new skin3d.IdleAnimation();
+    viewer.autoRotate = true;
+    viewer.autoRotateSpeed = 0.5;
+    viewer.globalLight.intensity = 3.0;
 
-    // --- Toggle overlay layer ---
-    window.toggleLayer = function(category, id) {
-        if (!overlaysData || !overlaysData[category]) return;
+    const resizeObserver = new ResizeObserver(() => {
+        viewer.width = canvas3d.parentElement.clientWidth;
+        viewer.height = canvas3d.parentElement.clientHeight;
+    });
+    resizeObserver.observe(canvas3d.parentElement);
+}
 
-        const overlay = overlaysData[category].find(o => o.id === id);
-        if (!overlay) return;
+// --- Fetch overlays JSON and build UI ---
+async function fetchOverlays() {
+    try {
+        const res = await fetch('overlays.json');
+        overlaysData = await res.json();
+        currentSkinUrl = overlaysData.defaultSkin || 'https://minotar.net/skin/MHF_Steve';
+        generateUI();
+        regenerateSkin();
+    } catch (err) {
+        console.error("Failed to load overlays.json:", err);
+    }
+}
 
-        if (activeLayers[category] && activeLayers[category].id === id) {
-            activeLayers[category] = null;
-        } else {
-            activeLayers[category] = { id: overlay.id, url: overlay.url };
+// --- Generate UI dynamically ---
+function generateUI() {
+    const container = document.getElementById('overlayContainer');
+    container.innerHTML = '';
+
+    for (const category in overlaysData) {
+        if (category === 'defaultSkin') continue;
+        const catDiv = document.createElement('div');
+        catDiv.className = 'mb-4';
+        const title = document.createElement('h3');
+        title.className = 'text-white mb-2';
+        title.innerText = category.charAt(0).toUpperCase() + category.slice(1);
+        catDiv.appendChild(title);
+
+        overlaysData[category].forEach(overlay => {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'inline-block text-center mr-2 mb-2';
+
+            const btn = document.createElement('button');
+            btn.id = `btn-${category}-${overlay.id}`;
+            btn.className = 'w-16 h-16 border-2 border-slate-600 border-dashed rounded';
+            btn.title = overlay.name;
+            btn.onclick = () => toggleLayer(category, overlay.id);
+            wrapper.appendChild(btn);
+
+            const previewCanvas = document.createElement('canvas');
+            previewCanvas.width = 64;
+            previewCanvas.height = 64;
+            previewCanvas.className = 'hidden';
+            wrapper.appendChild(previewCanvas);
+
+            catDiv.appendChild(wrapper);
+
+            createMiniPreview(category, overlay, previewCanvas);
+        });
+
+        container.appendChild(catDiv);
+    }
+}
+
+// --- Create mini preview ---
+async function createMiniPreview(category, overlay, canvas) {
+    const tempCanvas = document.createElement('canvas');
+    tempCanvas.width = 64; tempCanvas.height = 64;
+    const ctx = tempCanvas.getContext('2d');
+
+    const baseImg = await loadImage(currentSkinUrl);
+    const overlayImg = await loadImage(overlay.url);
+
+    ctx.drawImage(baseImg, 0, 0, 64, 64);
+    ctx.drawImage(overlayImg, 0, 0, 64, 64);
+
+    const skinData = tempCanvas.toDataURL();
+
+    const v = new skin3d.View({
+        canvas: canvas,
+        width: canvas.clientWidth,
+        height: canvas.clientHeight,
+        skin: skinData,
+        alpha: true
+    });
+
+    v.animation = null;
+    v.autoRotate = false;
+    v.controls.enableRotate = false;
+    v.controls.enableZoom = false;
+    v.controls.enablePan = false;
+    v.globalLight.intensity = 3.0;
+    v.render();
+
+    canvas.classList.remove('hidden'); // Show canvas
+}
+
+// --- Toggle layer ---
+function toggleLayer(category, id) {
+    const overlay = overlaysData[category].find(o => o.id === id);
+    if (!overlay) return;
+
+    if (activeLayers[category] && activeLayers[category].id === id) {
+        activeLayers[category] = null;
+    } else {
+        activeLayers[category] = { id: overlay.id, url: overlay.url };
+    }
+
+    updateUI();
+    regenerateSkin();
+}
+
+// --- Update UI ---
+function updateUI() {
+    for (const category in activeLayers) {
+        overlaysData[category].forEach(overlay => {
+            const el = document.getElementById(`btn-${category}-${overlay.id}`);
+            if (!el) return;
+            if (activeLayers[category] && activeLayers[category].id === overlay.id) {
+                el.classList.add('btn-active', 'border-green-400', 'border-solid');
+                el.classList.remove('border-slate-600', 'border-dashed');
+            } else {
+                el.classList.remove('btn-active', 'border-green-400', 'border-solid');
+                el.classList.add('border-slate-600', 'border-dashed');
+            }
+        });
+    }
+}
+
+// --- Regenerate combined skin ---
+async function regenerateSkin() {
+    pCtx.clearRect(0, 0, 64, 64);
+
+    try {
+        const baseImg = await loadImage(currentSkinUrl);
+        pCtx.drawImage(baseImg, 0, 0, 64, 64);
+
+        let layersToApply = [];
+        if (activeLayers.top) layersToApply.push({ ...activeLayers.top, type: 'top' });
+        if (activeLayers.onesie) layersToApply.push({ ...activeLayers.onesie, type: 'onesie' });
+        if (activeLayers.boots) layersToApply.push({ ...activeLayers.boots, type: 'boots' });
+
+        const loadedImages = await Promise.all(layersToApply.map(l => loadImage(l.url)));
+
+        for (let i = 0; i < layersToApply.length; i++) {
+            const layer = layersToApply[i];
+            const overlayImg = loadedImages[i];
+
+            pCtx.drawImage(overlayImg, 0, 0, 64, 64);
         }
 
-        updateUI();
+        if (viewer) viewer.loadSkin(processingCanvas.toDataURL());
+    } catch (err) {
+        console.error("Error regenerating skin:", err);
+    }
+}
+
+// --- Custom skin upload ---
+window.handleFileUpload = function(input) {
+    if (!input.files[0]) return;
+    const reader = new FileReader();
+    reader.onload = e => {
+        currentSkinUrl = e.target.result;
         regenerateSkin();
     };
+    reader.readAsDataURL(input.files[0]);
+};
 
-    // --- Update UI ---
-    function updateUI() {
-        document.querySelectorAll('button[id^="btn-"]').forEach(btn => btn.classList.remove('btn-active'));
-        document.querySelectorAll('label[id^="btn-"]').forEach(btn => {
-            btn.classList.remove('btn-active');
-            btn.classList.add('border-slate-600', 'border-dashed');
-            btn.classList.remove('border-green-400', 'border-solid');
-        });
-
-        for (const category in activeLayers) {
-            if (activeLayers[category]) {
-                const btnId = `btn-${category}-${activeLayers[category].id}`;
-                const el = document.getElementById(btnId);
-                if (el) toggleElStyle(el);
-            }
-        }
-    }
-
-    function toggleElStyle(el) {
-        if (el.tagName === 'BUTTON') el.classList.add('btn-active');
-        else {
-            el.classList.add('btn-active', 'border-green-400', 'border-solid');
-            el.classList.remove('border-slate-600', 'border-dashed');
-        }
-    }
-
-    // --- Download final skin ---
-    window.downloadSkin = function() {
-        const link = document.createElement('a');
-        link.download = 'skin-with-overlays.png';
-        link.href = processingCanvas.toDataURL('image/png');
-        link.click();
-    };
-
-    // --- Toggle walking animation ---
-    window.toggleWalk = function() {
-        if (!viewer) return;
-        if (viewer.animation instanceof skin3d.WalkingAnimation) {
-            viewer.animation = new skin3d.IdleAnimation();
-        } else {
-            viewer.animation = new skin3d.WalkingAnimation();
-        }
-    };
-
-    // --- Utility: load image ---
-    function loadImage(src) {
-        return new Promise((resolve, reject) => {
-            const img = new Image();
-            img.crossOrigin = "anonymous";
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = src;
-        });
-    }
-
-    // --- Regenerate skin ---
-    async function regenerateSkin() {
-        pCtx.clearRect(0, 0, 64, 64);
-
-        try {
-            const baseImg = await loadImage(currentSkinUrl);
-            pCtx.drawImage(baseImg, 0, 0, 64, 64);
-
-            let layersToApply = [];
-            if (activeLayers.top) layersToApply.push({ ...activeLayers.top, type: 'top' });
-            if (activeLayers.onesie) layersToApply.push({ ...activeLayers.onesie, type: 'onesie' });
-            if (activeLayers.boots) layersToApply.push({ ...activeLayers.boots, type: 'boots' });
-
-            const loadedImages = await Promise.all(layersToApply.map(l => loadImage(l.url)));
-
-            for (let i = 0; i < layersToApply.length; i++) {
-                const layer = layersToApply[i];
-                const overlayImg = loadedImages[i];
-
-                // Clear necessary zones depending on type
-                if (layer.type === 'onesie') {
-                    const wipeZones = [
-                        { x: 16, y: 32, w: 24, h: 16 },
-                        { x: 40, y: 32, w: 16, h: 16 },
-                        { x: 48, y: 48, w: 16, h: 16 },
-                        { x: 0, y: 32, w: 16, h: 16 },
-                        { x: 0, y: 48, w: 16, h: 16 }
-                    ];
-                    wipeZones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
-                } else if (layer.type === 'boots') {
-                    const zones = [{ x: 0, y: 32, w: 16, h: 16 }, { x: 0, y: 48, w: 16, h: 16 }];
-                    zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
-                } else if (layer.type === 'top') {
-                    const zones = [
-                        { x: 16, y: 32, w: 24, h: 16 },
-                        { x: 40, y: 32, w: 16, h: 16 },
-                        { x: 48, y: 48, w: 16, h: 16 }
-                    ];
-                    zones.forEach(z => pCtx.clearRect(z.x, z.y, z.w, z.h));
-                }
-
-                pCtx.drawImage(overlayImg, 0, 0, 64, 64);
-            }
-
-            // Update 3D viewer
-            if (viewer) viewer.loadSkin(processingCanvas.toDataURL());
-
-        } catch (err) {
-            console.error("Error regenerating skin:", err);
-        }
-    }
-
+// --- Username skin load ---
+window.loadFromUsername = function() {
+    const username = document.getElementById('usernameInput').value.trim();
+    if (!username) return;
+    currentSkinUrl = `https://minotar.net/skin/${username}`;
     regenerateSkin();
-    init3D();
+};
+
+// --- Download ---
+window.downloadSkin = function() {
+    const link = document.createElement('a');
+    link.download = 'skin-with-overlays.png';
+    link.href = processingCanvas.toDataURL();
+    link.click();
+};
+
+init3D();
+fetchOverlays();
+regenerateSkin();
 </script>
 </body>
 </html>
